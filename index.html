@@ -59,7 +59,6 @@
     white-space:nowrap;
     filter:drop-shadow(0 0 6px rgba(79,140,255,.35));
     animation:brandPulse 3.2s ease-in-out infinite;
-    /* Небольшая высота — чтобы «разлетающиеся» буквы не резались */
     padding-top:6px;
     padding-bottom:6px;
   }
@@ -85,7 +84,7 @@
     -webkit-text-fill-color:transparent;
     animation:brandShimmer 4.2s linear infinite;
     will-change:transform;
-    transform-origin:50% 50%;   /* вращение вокруг центра буквы */
+    transform-origin:50% 50%;
     backface-visibility:hidden;
   }
   @keyframes brandShimmer{
@@ -152,13 +151,28 @@
   .btn.diff small{color:var(--muted);font-size:12.5px;font-weight:500;line-height:1.3}
   .btn.diff.primary small{color:rgba(255,255,255,.8)}
 
+  /* ============================================================
+     ПОЛЕ ВВОДА СЕКРЕТНОГО СЛОВА
+     Тип — text (без пароля!), маскировка через CSS.
+     Браузеры не будут предлагать сохранить пароль.
+     ============================================================ */
   .secret-wrap{position:relative;width:100%;max-width:360px}
   #secret-input{
     width:100%;padding:16px 52px 16px 18px;border-radius:14px;border:1px solid var(--tile-border);
     background:var(--panel);color:var(--text);font-size:22px;text-align:center;
     text-transform:uppercase;outline:none;font-weight:700;
+    letter-spacing:.08em;
   }
   #secret-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.18)}
+
+  /* Маскировка букв точками без type=password.
+     -webkit-text-security работает в Chrome, Safari, Edge,
+     Opera и Firefox 111+. Fallback — прозрачный цвет текста. */
+  #secret-input.masked{
+    -webkit-text-security: disc;
+    text-security: disc;
+  }
+
   #toggle-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);
     background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:8px}
 
@@ -313,8 +327,10 @@
     <h2>Игрок 1</h2>
     <p class="sub" id="setup-sub">Загадайте слово. Игрок 2 не должен его видеть!</p>
     <div class="secret-wrap">
-      <input id="secret-input" type="password" inputmode="text"
-             autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="•••••">
+      <!-- type="text" — НЕ пароль. Маскировка через CSS-класс .masked -->
+      <input id="secret-input" class="masked" type="text" inputmode="text"
+             autocapitalize="characters" autocomplete="off" autocorrect="off"
+             spellcheck="false" placeholder="•••••">
       <button id="toggle-eye" title="Показать/скрыть">👁</button>
     </div>
     <button class="btn primary" id="setup-next" disabled>Дальше</button>
@@ -517,7 +533,15 @@ function toast(msg){
 }
 
 /* ============================================================
-   4. СЛОВАРЬ БЕЗ ПОВТОРОВ
+   4. ХЕЛПЕРЫ ДЛЯ ПОЛЯ СЕКРЕТА
+   (тип поля — text, маскировка через CSS-класс .masked)
+   ============================================================ */
+function maskSecret(){ secretInput.classList.add('masked'); }
+function unmaskSecret(){ secretInput.classList.remove('masked'); }
+function isMasked(){ return secretInput.classList.contains('masked'); }
+
+/* ============================================================
+   5. СЛОВАРЬ БЕЗ ПОВТОРОВ
    ============================================================ */
 const usedKey = len => 'ru_wordle_used_v4_' + len;
 function getUsed(len){
@@ -540,7 +564,7 @@ function pickWord(len){
 }
 
 /* ============================================================
-   5. ОЦЕНКА
+   6. ОЦЕНКА
    ============================================================ */
 function evaluate(guess, secret){
   const n = secret.length;
@@ -559,7 +583,7 @@ function evaluate(guess, secret){
 }
 
 /* ============================================================
-   6. ПОЛЕ И КЛАВИАТУРА
+   7. ПОЛЕ И КЛАВИАТУРА
    ============================================================ */
 function buildBoard(){
   boardEl.innerHTML = '';
@@ -616,7 +640,7 @@ const tileEl = (r,c) => boardEl.children[r].children[c];
 const keyEl  = k => keyboardEl.querySelector(`[data-key="${k}"]`);
 
 /* ============================================================
-   7. ВВОД
+   8. ВВОД
    ============================================================ */
 function handleKey(k){
   if (S.over || S.busy) return;
@@ -638,7 +662,7 @@ function handleKey(k){
 }
 
 /* ============================================================
-   8. ОТПРАВКА
+   9. ОТПРАВКА
    ============================================================ */
 function submitGuess(){
   if (S.current.length < S.len){
@@ -697,7 +721,7 @@ function shakeRow(r){
 }
 
 /* ============================================================
-   9. СТАРТ / КОНЕЦ
+   10. СТАРТ / КОНЕЦ
    ============================================================ */
 function resetGameUI(){
   buildBoard();
@@ -757,7 +781,7 @@ function endGame(won){
 }
 
 /* ============================================================
-   10. НАВИГАЦИЯ
+   11. НАВИГАЦИЯ
    ============================================================ */
 document.querySelectorAll('#len-seg button').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -804,9 +828,9 @@ document.querySelectorAll('[data-diff]').forEach(btn => {
     if (S.mode === 'bot'){ startBotGame(); return; }
 
     secretInput.value = '';
-    secretInput.type = 'password';
-    secretInput.maxLength = S.len;
+    maskSecret();
     $('toggle-eye').textContent = '👁';
+    secretInput.maxLength = S.len;
     setupNext.disabled = true;
     $('setup-sub').textContent =
       `Загадайте слово из ${S.len} букв. Игрок 2 не должен его видеть!`;
@@ -820,7 +844,7 @@ setupNext.addEventListener('click', () => {
   if (word.length !== S.len){ toast(`Нужно ровно ${S.len} букв`); return; }
   S.pendingSecret = word;
   secretInput.value = '';
-  secretInput.type = 'password';
+  maskSecret();
   $('toggle-eye').textContent = '👁';
   const t = DIFF[S.diff].tries(S.len);
   $('handoff-sub').textContent =
@@ -833,9 +857,14 @@ $('handoff-go').addEventListener('click', () => {
 });
 
 $('toggle-eye').addEventListener('click', () => {
-  const hidden = secretInput.type === 'password';
-  secretInput.type = hidden ? 'text' : 'password';
-  $('toggle-eye').textContent = hidden ? '🙈' : '👁';
+  const hidden = isMasked();
+  if (hidden){
+    unmaskSecret();
+    $('toggle-eye').textContent = '🙈';
+  } else {
+    maskSecret();
+    $('toggle-eye').textContent = '👁';
+  }
   secretInput.focus();
 });
 
@@ -861,9 +890,9 @@ $('ov-again').addEventListener('click', () => {
     startBotGame();
   } else {
     secretInput.value = '';
-    secretInput.type = 'password';
-    secretInput.maxLength = S.len;
+    maskSecret();
     $('toggle-eye').textContent = '👁';
+    secretInput.maxLength = S.len;
     setupNext.disabled = true;
     showScreen('setup');
     setTimeout(() => secretInput.focus(), 120);
@@ -876,7 +905,7 @@ $('ov-menu').addEventListener('click', () => {
 });
 
 /* ============================================================
-   11. ФИЗИЧЕСКАЯ КЛАВИАТУРА
+   12. ФИЗИЧЕСКАЯ КЛАВИАТУРА
    ============================================================ */
 document.addEventListener('keydown', e => {
   if (!screens.game.classList.contains('active')) return;
@@ -894,7 +923,7 @@ document.addEventListener('keydown', e => {
 });
 
 /* ============================================================
-   12. PWA
+   13. PWA
    ============================================================ */
 (function setupPWA(){
   function roundRect(ctx, x, y, w, h, r){
@@ -975,7 +1004,7 @@ document.addEventListener('keydown', e => {
 })();
 
 /* ============================================================
-   13. КНОПКА «УСТАНОВИТЬ»
+   14. КНОПКА «УСТАНОВИТЬ»
    ============================================================ */
 (function setupInstallButton(){
   const btnInstall = $('btn-install');
@@ -1032,7 +1061,7 @@ document.addEventListener('keydown', e => {
 })();
 
 /* ============================================================
-   14. КНОПКА «ПОДЕЛИТЬСЯ»
+   15. КНОПКА «ПОДЕЛИТЬСЯ»
    ============================================================ */
 (function setupShareButton(){
   const btnShare = $('btn-share');
@@ -1075,17 +1104,9 @@ document.addEventListener('keydown', e => {
 })();
 
 /* ============================================================
-   15. АНИМАЦИЯ ЛОГОТИПА «ВОРДЛИ»
-   ------------------------------------------------------------
-   Сценарий одного «события»:
-     1. Все буквы одновременно получают импульс — как будто
-        что-то толкнуло их сзади. Мгновенно разлетаются
-        каждая в свою сторону, кувыркаясь и увеличиваясь.
-     2. Секунду хаотично «висят» в разлёте, продолжая слегка
-        дрейфовать и вращаться.
-     3. Одновременно все «вспоминают», где должны быть, и
-        резко возвращаются на свои места — с перелётом,
-        отскоком и лёгкой дрожью в финале.
+   16. АНИМАЦИЯ ЛОГОТИПА «ВОРДЛИ»
+   Буквы разлетаются (будто толкнули сзади) и возвращаются.
+   Паузы между событиями увеличены — 4–7 секунд.
    ============================================================ */
 (function animateBrand(){
   const brandEl = document.getElementById('brand');
@@ -1103,7 +1124,7 @@ document.addEventListener('keydown', e => {
     letters.push(span);
   });
 
-  // Вступительное появление — короткая резкая «выстреливающая» анимация
+  // Вступительное появление
   letters.forEach((el, i) => {
     el.animate([
       { opacity: 0, transform: 'translate3d(0,-22px,0) scale(.4) rotate(-30deg)' },
@@ -1117,51 +1138,37 @@ document.addEventListener('keydown', e => {
     });
   });
 
-  /* ------------------------------------------------------------
-     Ключевые кадры «разлёта и возврата».
-
-     Тайминги (доля от общей длительности):
-       0.00 — стоим на месте
-       0.09 — импульс: буква уже вылетела на 70% пути
-       0.28 — замедляется, почти на месте падения
-       0.42 — максимальная точка разлёта
-       0.58 — хаос: слегка дрейфует, вращаясь
-       0.72 — начинает «вспоминать» — сдвиг назад
-       0.86 — пролетела мимо своей позиции (перелёт)
-       0.94 — отскок в противоположную сторону
-       1.00 — успокоилась на месте
-     ------------------------------------------------------------ */
   function makeKeyframes(dx, dy, rot, scaleUp){
     return [
       { transform: 'translate3d(0,0,0) rotate(0deg) scale(1)', offset: 0 },
 
-      // 1. Импульс: мгновенный вылет (толчок сзади)
+      // Импульс: мгновенный вылет
       { transform: `translate3d(${dx*0.70}px, ${dy*0.70}px, 0) rotate(${rot*0.45}deg) scale(${scaleUp})`, offset: 0.09 },
 
-      // 2. Замедление, буква почти долетела
+      // Замедление
       { transform: `translate3d(${dx*0.94}px, ${dy*0.94}px, 0) rotate(${rot*0.85}deg) scale(${scaleUp*0.96})`, offset: 0.28 },
 
-      // 3. Пик разлёта
+      // Пик разлёта
       { transform: `translate3d(${dx}px, ${dy}px, 0) rotate(${rot}deg) scale(${scaleUp*0.9})`, offset: 0.42 },
 
-      // 4. Хаос: зависает, слегка дрейфует и доворачивается
+      // Хаос: дрейф и доворот
       { transform: `translate3d(${dx*1.07}px, ${dy*1.05}px, 0) rotate(${rot*1.18}deg) scale(${scaleUp*0.84})`, offset: 0.58 },
 
-      // 5. «Вспоминает» — начало возврата
+      // Возврат
       { transform: `translate3d(${dx*0.35}px, ${dy*0.35}px, 0) rotate(${rot*0.5}deg) scale(${scaleUp*0.55})`, offset: 0.72 },
 
-      // 6. Пролетает мимо своей позиции (перелёт)
+      // Перелёт
       { transform: `translate3d(${-dx*0.18}px, ${-dy*0.18}px, 0) rotate(${-rot*0.28}deg) scale(1.16)`, offset: 0.86 },
 
-      // 7. Отскок в противоположную сторону
+      // Отскок
       { transform: `translate3d(${dx*0.06}px, ${dy*0.06}px, 0) rotate(${rot*0.1}deg) scale(0.94)`, offset: 0.94 },
 
-      // 8. Успокоилась
+      // Покой
       { transform: 'translate3d(0,0,0) rotate(0deg) scale(1)', offset: 1 }
     ];
   }
 
-  const DURATION = 1500;             // длительность одного события
+  const DURATION = 1500;
   const EASING   = 'cubic-bezier(.32,.02,.4,1)';
   let busy = false;
 
@@ -1172,22 +1179,17 @@ document.addEventListener('keydown', e => {
     const center = (letters.length - 1) / 2;
 
     letters.forEach((el, i) => {
-      // Позиция буквы относительно центра слова: -1..+1
       const rel = center === 0 ? 0 : (i - center) / center;
 
-      // «Толчок сзади»: буквы разлетаются преимущественно наружу
-      // от центра и вниз (толчок сверху / из-за спины), с шумом.
-      const sideStrength = 16 + Math.abs(rel) * 14;           // крайние буквы — сильнее
+      const sideStrength = 16 + Math.abs(rel) * 14;
       const noiseX = (Math.random() - 0.5) * 44;
       const noiseY = (Math.random() - 0.5) * 46;
 
       let dx = rel * sideStrength + noiseX;
-      let dy = 16 + Math.random() * 22 + noiseY * 0.5;        // базово вниз
+      let dy = 16 + Math.random() * 22 + noiseY * 0.5;
 
-      // Часть букв случайно выбрасывает вверх — усиливает хаос
       if (Math.random() < 0.35) dy = -Math.abs(dy) * (0.55 + Math.random() * 0.7);
 
-      // Ограничим амплитуду, чтобы не вылетали за шапку
       const maxX = 52, maxY = 34;
       dx = Math.max(-maxX, Math.min(maxX, dx));
       dy = Math.max(-maxY, Math.min(maxY, dy));
@@ -1208,17 +1210,17 @@ document.addEventListener('keydown', e => {
   let timer = null;
   function schedule(){
     clearTimeout(timer);
-    // Быстрый темп: 1000–1900 мс между событиями
-    const delay = 1000 + Math.random() * 900;
+    // Увеличенные паузы между «рассыпаниями»: 4.0–6.5 секунды
+    const delay = 4000 + Math.random() * 2500;
     timer = setTimeout(() => {
       scatterAll();
       schedule();
     }, delay);
   }
 
-  setTimeout(schedule, 1100);
+  // Первый запуск — с чуть увеличенной стартовой паузой
+  setTimeout(schedule, 1800);
 
-  // Пауза, когда вкладка в фоне
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) clearTimeout(timer);
     else schedule();
@@ -1226,7 +1228,7 @@ document.addEventListener('keydown', e => {
 })();
 
 /* ============================================================
-   16. ИНИЦИАЛИЗАЦИЯ
+   17. ИНИЦИАЛИЗАЦИЯ
    ============================================================ */
 buildBoard();
 buildKeyboard();
