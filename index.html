@@ -28,9 +28,6 @@
     min-height:100%;
   }
 
-  /* ============================================================
-     ЗАКРЕПЛЁННАЯ ШАПКА
-     ============================================================ */
   .app-header{
     position:fixed;
     top:0; left:0; right:0;
@@ -50,11 +47,29 @@
   }
 
   .brand{
+    display:inline-flex;
+    align-items:center;
+    gap:.26em;
+    padding-left:.26em;
     font-size:clamp(17px, 4.8vw, 21px);
     font-weight:800;
-    letter-spacing:.28em;
-    padding-left:.28em;
+    line-height:1;
     text-transform:uppercase;
+    user-select:none;
+    white-space:nowrap;
+    filter:drop-shadow(0 0 6px rgba(79,140,255,.35));
+    animation:brandPulse 3.2s ease-in-out infinite;
+    /* Небольшая высота — чтобы «разлетающиеся» буквы не резались */
+    padding-top:6px;
+    padding-bottom:6px;
+  }
+  @keyframes brandPulse{
+    0%,100%{ filter:drop-shadow(0 0 5px rgba(79,140,255,.22)); }
+    50%    { filter:drop-shadow(0 0 14px rgba(79,140,255,.6)); }
+  }
+
+  .brand-letter{
+    display:inline-block;
     background:linear-gradient(90deg,
       #8fa6c9 0%,
       #ffffff 18%,
@@ -68,24 +83,14 @@
     background-clip:text;
     color:transparent;
     -webkit-text-fill-color:transparent;
-    user-select:none;
-    white-space:nowrap;
-    animation:
-      brandShimmer 4.2s linear infinite,
-      brandPulse 2.8s ease-in-out infinite,
-      brandIntro .9s cubic-bezier(.2,.8,.2,1);
+    animation:brandShimmer 4.2s linear infinite;
+    will-change:transform;
+    transform-origin:50% 50%;   /* вращение вокруг центра буквы */
+    backface-visibility:hidden;
   }
   @keyframes brandShimmer{
-    0%   { background-position: 0% center; }
-    100% { background-position: 200% center; }
-  }
-  @keyframes brandPulse{
-    0%,100%{ filter: drop-shadow(0 0 5px rgba(79,140,255,.18)); }
-    50%    { filter: drop-shadow(0 0 13px rgba(79,140,255,.55)); }
-  }
-  @keyframes brandIntro{
-    0%   { opacity:0; transform:translateY(-8px); }
-    100% { opacity:1; transform:translateY(0); }
+    0%   { background-position:0% center; }
+    100% { background-position:200% center; }
   }
 
   .header-actions{ display:flex; gap:6px; align-items:center; }
@@ -109,9 +114,6 @@
   .icon-btn:active{ transform:scale(.93); }
   .icon-btn[hidden]{ display:none; }
 
-  /* ============================================================
-     ОБЩИЕ БЛОКИ
-     ============================================================ */
   .app{width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center}
 
   .screen{display:none;width:100%;flex:1;flex-direction:column;align-items:center;gap:14px;justify-content:center;text-align:center}
@@ -244,11 +246,8 @@
 </head>
 <body>
 
-<!-- ============================================================
-     ЗАКРЕПЛЁННАЯ ШАПКА
-     ============================================================ -->
 <header class="app-header">
-  <div class="brand">ВОРДЛИ</div>
+  <div class="brand" id="brand" aria-label="ВОРДЛИ"></div>
   <div class="header-actions">
     <button id="btn-share" class="icon-btn" aria-label="Поделиться" title="Поделиться">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -274,7 +273,6 @@
 
 <div class="app">
 
-  <!-- ================= МЕНЮ ================= -->
   <section id="screen-menu" class="screen active">
     <div class="big-emoji">🎯</div>
     <h2>Угадайте слово</h2>
@@ -283,7 +281,6 @@
     <button class="btn big" data-go="bot">🤖 Игра с ботом</button>
   </section>
 
-  <!-- ================= НАСТРОЙКИ ================= -->
   <section id="screen-diff" class="screen">
     <h2 id="diff-title">Настройки игры</h2>
     <p class="sub" id="diff-sub"></p>
@@ -312,7 +309,6 @@
     <button class="btn ghost" data-go="menu">Назад</button>
   </section>
 
-  <!-- ================= ЗАГАДЫВАНИЕ СЛОВА ================= -->
   <section id="screen-setup" class="screen">
     <h2>Игрок 1</h2>
     <p class="sub" id="setup-sub">Загадайте слово. Игрок 2 не должен его видеть!</p>
@@ -325,7 +321,6 @@
     <button class="btn ghost" data-go="menu">Назад</button>
   </section>
 
-  <!-- ================= ПЕРЕДАЧА УСТРОЙСТВА ================= -->
   <section id="screen-handoff" class="screen">
     <div class="big-emoji">🤝</div>
     <h2>Передайте устройство Игроку 2</h2>
@@ -333,7 +328,6 @@
     <button class="btn primary" id="handoff-go">Я готов</button>
   </section>
 
-  <!-- ================= ИГРА ================= -->
   <section id="screen-game" class="screen">
     <div class="topbar">
       <span id="game-mode">Игра</span>
@@ -360,7 +354,7 @@
 
 <script>
 /* ============================================================
-   1. СЛОВАРЬ — вынесен в объект, легко заменить на внешний JSON
+   1. СЛОВАРЬ
    ============================================================ */
 const WORDS_JSON = {
   "4": `
@@ -900,7 +894,7 @@ document.addEventListener('keydown', e => {
 });
 
 /* ============================================================
-   12. PWA — манифест, иконки, установка
+   12. PWA
    ============================================================ */
 (function setupPWA(){
   function roundRect(ctx, x, y, w, h, r){
@@ -912,40 +906,30 @@ document.addEventListener('keydown', e => {
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
   }
-
   function drawIcon(size){
     const c = document.createElement('canvas');
     c.width = c.height = size;
     const ctx = c.getContext('2d');
-
-    // Фон
     const g = ctx.createLinearGradient(0, 0, size, size);
     g.addColorStop(0, '#232c40');
     g.addColorStop(1, '#0f1115');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
-
-    // Рамка-акцент
     ctx.strokeStyle = 'rgba(79,140,255,.65)';
     ctx.lineWidth = Math.max(2, size * 0.018);
     const pad = size * 0.09, rr = size * 0.18;
     roundRect(ctx, pad, pad, size - pad*2, size - pad*2, rr);
     ctx.stroke();
-
-    // Буква «В»
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold ${size * 0.46}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('В', size/2, size/2 + size * 0.02);
-
     return c.toDataURL('image/png');
   }
-
   const icon192 = drawIcon(192);
   const icon512 = drawIcon(512);
 
-  // --- Манифест ---
   const manifest = {
     name: 'Вордли — русская версия',
     short_name: 'Вордли',
@@ -972,7 +956,6 @@ document.addEventListener('keydown', e => {
     document.head.appendChild(link);
   } catch(e){}
 
-  // --- apple-touch-icon + favicon ---
   const aIcon = document.createElement('link');
   aIcon.rel = 'apple-touch-icon';
   aIcon.href = icon192;
@@ -984,7 +967,6 @@ document.addEventListener('keydown', e => {
   fIcon.href = icon192;
   document.head.appendChild(fIcon);
 
-  // --- Service worker (опционально, если рядом лежит sw.js) ---
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -1009,7 +991,6 @@ document.addEventListener('keydown', e => {
   if (isStandalone()){
     btnInstall.hidden = true;
   } else if (isIOS){
-    // На iOS PWA ставится вручную через «Поделиться → На экран Домой»
     btnInstall.hidden = false;
   }
 
@@ -1037,7 +1018,6 @@ document.addEventListener('keydown', e => {
       } catch(e){}
       return;
     }
-
     if (isIOS){
       alert('Установка на iPhone / iPad:\n\n' +
             '1. Откройте меню «Поделиться» в Safari\n' +
@@ -1065,25 +1045,19 @@ document.addEventListener('keydown', e => {
       url
     };
 
-    // 1) Нативный share (мобильные + Edge)
     if (navigator.share){
       try {
         await navigator.share(payload);
         return;
       } catch(e){
-        // Пользователь отменил — тихо выходим
         if (e && e.name === 'AbortError') return;
       }
     }
-
-    // 2) Clipboard API
     try {
       await navigator.clipboard.writeText(url);
       toast('Ссылка скопирована');
       return;
     } catch(e){}
-
-    // 3) Самый старый fallback
     try {
       const ta = document.createElement('textarea');
       ta.value = url;
@@ -1101,7 +1075,158 @@ document.addEventListener('keydown', e => {
 })();
 
 /* ============================================================
-   15. ИНИЦИАЛИЗАЦИЯ
+   15. АНИМАЦИЯ ЛОГОТИПА «ВОРДЛИ»
+   ------------------------------------------------------------
+   Сценарий одного «события»:
+     1. Все буквы одновременно получают импульс — как будто
+        что-то толкнуло их сзади. Мгновенно разлетаются
+        каждая в свою сторону, кувыркаясь и увеличиваясь.
+     2. Секунду хаотично «висят» в разлёте, продолжая слегка
+        дрейфовать и вращаться.
+     3. Одновременно все «вспоминают», где должны быть, и
+        резко возвращаются на свои места — с перелётом,
+        отскоком и лёгкой дрожью в финале.
+   ============================================================ */
+(function animateBrand(){
+  const brandEl = document.getElementById('brand');
+  if (!brandEl) return;
+
+  const WORD = 'ВОРДЛИ';
+  const letters = [];
+
+  brandEl.textContent = '';
+  WORD.split('').forEach(ch => {
+    const span = document.createElement('span');
+    span.className = 'brand-letter';
+    span.textContent = ch;
+    brandEl.appendChild(span);
+    letters.push(span);
+  });
+
+  // Вступительное появление — короткая резкая «выстреливающая» анимация
+  letters.forEach((el, i) => {
+    el.animate([
+      { opacity: 0, transform: 'translate3d(0,-22px,0) scale(.4) rotate(-30deg)' },
+      { opacity: 1, transform: 'translate3d(0,5px,0)   scale(1.18) rotate(6deg)', offset: 0.72 },
+      { opacity: 1, transform: 'translate3d(0,0,0)    scale(1) rotate(0deg)' }
+    ], {
+      duration: 500,
+      delay: 55 * i,
+      easing: 'cubic-bezier(.16,1.25,.3,1)',
+      fill: 'both'
+    });
+  });
+
+  /* ------------------------------------------------------------
+     Ключевые кадры «разлёта и возврата».
+
+     Тайминги (доля от общей длительности):
+       0.00 — стоим на месте
+       0.09 — импульс: буква уже вылетела на 70% пути
+       0.28 — замедляется, почти на месте падения
+       0.42 — максимальная точка разлёта
+       0.58 — хаос: слегка дрейфует, вращаясь
+       0.72 — начинает «вспоминать» — сдвиг назад
+       0.86 — пролетела мимо своей позиции (перелёт)
+       0.94 — отскок в противоположную сторону
+       1.00 — успокоилась на месте
+     ------------------------------------------------------------ */
+  function makeKeyframes(dx, dy, rot, scaleUp){
+    return [
+      { transform: 'translate3d(0,0,0) rotate(0deg) scale(1)', offset: 0 },
+
+      // 1. Импульс: мгновенный вылет (толчок сзади)
+      { transform: `translate3d(${dx*0.70}px, ${dy*0.70}px, 0) rotate(${rot*0.45}deg) scale(${scaleUp})`, offset: 0.09 },
+
+      // 2. Замедление, буква почти долетела
+      { transform: `translate3d(${dx*0.94}px, ${dy*0.94}px, 0) rotate(${rot*0.85}deg) scale(${scaleUp*0.96})`, offset: 0.28 },
+
+      // 3. Пик разлёта
+      { transform: `translate3d(${dx}px, ${dy}px, 0) rotate(${rot}deg) scale(${scaleUp*0.9})`, offset: 0.42 },
+
+      // 4. Хаос: зависает, слегка дрейфует и доворачивается
+      { transform: `translate3d(${dx*1.07}px, ${dy*1.05}px, 0) rotate(${rot*1.18}deg) scale(${scaleUp*0.84})`, offset: 0.58 },
+
+      // 5. «Вспоминает» — начало возврата
+      { transform: `translate3d(${dx*0.35}px, ${dy*0.35}px, 0) rotate(${rot*0.5}deg) scale(${scaleUp*0.55})`, offset: 0.72 },
+
+      // 6. Пролетает мимо своей позиции (перелёт)
+      { transform: `translate3d(${-dx*0.18}px, ${-dy*0.18}px, 0) rotate(${-rot*0.28}deg) scale(1.16)`, offset: 0.86 },
+
+      // 7. Отскок в противоположную сторону
+      { transform: `translate3d(${dx*0.06}px, ${dy*0.06}px, 0) rotate(${rot*0.1}deg) scale(0.94)`, offset: 0.94 },
+
+      // 8. Успокоилась
+      { transform: 'translate3d(0,0,0) rotate(0deg) scale(1)', offset: 1 }
+    ];
+  }
+
+  const DURATION = 1500;             // длительность одного события
+  const EASING   = 'cubic-bezier(.32,.02,.4,1)';
+  let busy = false;
+
+  function scatterAll(){
+    if (busy || document.hidden) return;
+    busy = true;
+
+    const center = (letters.length - 1) / 2;
+
+    letters.forEach((el, i) => {
+      // Позиция буквы относительно центра слова: -1..+1
+      const rel = center === 0 ? 0 : (i - center) / center;
+
+      // «Толчок сзади»: буквы разлетаются преимущественно наружу
+      // от центра и вниз (толчок сверху / из-за спины), с шумом.
+      const sideStrength = 16 + Math.abs(rel) * 14;           // крайние буквы — сильнее
+      const noiseX = (Math.random() - 0.5) * 44;
+      const noiseY = (Math.random() - 0.5) * 46;
+
+      let dx = rel * sideStrength + noiseX;
+      let dy = 16 + Math.random() * 22 + noiseY * 0.5;        // базово вниз
+
+      // Часть букв случайно выбрасывает вверх — усиливает хаос
+      if (Math.random() < 0.35) dy = -Math.abs(dy) * (0.55 + Math.random() * 0.7);
+
+      // Ограничим амплитуду, чтобы не вылетали за шапку
+      const maxX = 52, maxY = 34;
+      dx = Math.max(-maxX, Math.min(maxX, dx));
+      dy = Math.max(-maxY, Math.min(maxY, dy));
+
+      const rot = (Math.random() - 0.5) * 140;
+      const scaleUp = 1.15 + Math.random() * 0.22;
+
+      el.animate(makeKeyframes(dx, dy, rot, scaleUp), {
+        duration: DURATION,
+        easing: EASING,
+        fill: 'none'
+      });
+    });
+
+    setTimeout(() => { busy = false; }, DURATION + 80);
+  }
+
+  let timer = null;
+  function schedule(){
+    clearTimeout(timer);
+    // Быстрый темп: 1000–1900 мс между событиями
+    const delay = 1000 + Math.random() * 900;
+    timer = setTimeout(() => {
+      scatterAll();
+      schedule();
+    }, delay);
+  }
+
+  setTimeout(schedule, 1100);
+
+  // Пауза, когда вкладка в фоне
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) clearTimeout(timer);
+    else schedule();
+  });
+})();
+
+/* ============================================================
+   16. ИНИЦИАЛИЗАЦИЯ
    ============================================================ */
 buildBoard();
 buildKeyboard();
