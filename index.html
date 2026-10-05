@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Вордли">
+<title>Вордли — угадай слово</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --tile-empty:#1c2029; --tile-border:#3d434f;
+    --correct:#3f9e58; --present:#c2a03a; --absent:#333844;
+    --text:#e9edf3; --muted:#8b93a3; --accent:#4f8cff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:radial-gradient(1200px 700px at 50% -10%, #1b2130 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex;justify-content:center;
+    padding:14px;
+    padding-top:calc(74px + env(safe-area-inset-top, 0px));
+    min-height:100%;
+  }
+
+  /* ============================================================
+     ЗАКРЕПЛЁННАЯ ШАПКА
+     ============================================================ */
+  .app-header{
+    position:fixed;
+    top:0; left:0; right:0;
+    z-index:100;
+    height:calc(56px + env(safe-area-inset-top, 0px));
+    padding:0 14px;
+    padding-top:env(safe-area-inset-top, 0px);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    background:rgba(15,17,21,.8);
+    -webkit-backdrop-filter:blur(14px) saturate(160%);
+    backdrop-filter:blur(14px) saturate(160%);
+    border-bottom:1px solid rgba(255,255,255,.06);
+    box-shadow:0 6px 24px -18px rgba(0,0,0,.9);
+  }
+
+  .brand{
+    font-size:clamp(17px, 4.8vw, 21px);
+    font-weight:800;
+    letter-spacing:.28em;
+    padding-left:.28em;
+    text-transform:uppercase;
+    background:linear-gradient(90deg,
+      #8fa6c9 0%,
+      #ffffff 18%,
+      #6aa7ff 36%,
+      #ffffff 54%,
+      #8fa6c9 72%,
+      #ffffff 90%,
+      #8fa6c9 100%);
+    background-size:200% auto;
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    -webkit-text-fill-color:transparent;
+    user-select:none;
+    white-space:nowrap;
+    animation:
+      brandShimmer 4.2s linear infinite,
+      brandPulse 2.8s ease-in-out infinite,
+      brandIntro .9s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes brandShimmer{
+    0%   { background-position: 0% center; }
+    100% { background-position: 200% center; }
+  }
+  @keyframes brandPulse{
+    0%,100%{ filter: drop-shadow(0 0 5px rgba(79,140,255,.18)); }
+    50%    { filter: drop-shadow(0 0 13px rgba(79,140,255,.55)); }
+  }
+  @keyframes brandIntro{
+    0%   { opacity:0; transform:translateY(-8px); }
+    100% { opacity:1; transform:translateY(0); }
+  }
+
+  .header-actions{ display:flex; gap:6px; align-items:center; }
+
+  .icon-btn{
+    width:38px; height:38px;
+    border-radius:11px;
+    border:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.04);
+    color:var(--muted);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:0;
+    transition:color .15s, background .15s, border-color .15s, transform .1s;
+  }
+  .icon-btn svg{ width:18px; height:18px; display:block; }
+  .icon-btn:hover{
+    color:var(--text);
+    background:rgba(255,255,255,.08);
+    border-color:rgba(255,255,255,.16);
+  }
+  .icon-btn:active{ transform:scale(.93); }
+  .icon-btn[hidden]{ display:none; }
+
+  /* ============================================================
+     ОБЩИЕ БЛОКИ
+     ============================================================ */
+  .app{width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center}
+
+  .screen{display:none;width:100%;flex:1;flex-direction:column;align-items:center;gap:14px;justify-content:center;text-align:center}
+  .screen.active{display:flex}
+  #screen-game{justify-content:space-between;gap:8px;padding:4px 0}
+  #screen-game.active{display:flex}
+
+  h1{font-size:clamp(28px,8vw,38px);letter-spacing:.16em;margin:0;font-weight:800;
+     background:linear-gradient(180deg,#fff,#8fa6c9);-webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{margin:0;font-size:clamp(19px,5.5vw,24px);font-weight:700}
+  .sub{color:var(--muted);margin:0;font-size:15px;line-height:1.5;max-width:420px}
+  .big-emoji{font-size:56px;line-height:1}
+
+  .btn{
+    width:100%;max-width:360px;padding:15px 20px;border-radius:14px;border:1px solid var(--tile-border);
+    background:var(--panel);color:var(--text);font-size:16px;font-weight:600;cursor:pointer;
+    transition:transform .12s ease, background .15s, border-color .15s, opacity .15s;
+  }
+  .btn:hover{background:#20242e}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:linear-gradient(180deg,#4f8cff,#3a6fd8);border-color:#5f97ff;color:#fff;box-shadow:0 8px 24px -10px #4f8cff}
+  .btn.primary:hover{background:linear-gradient(180deg,#5c96ff,#3f76e0)}
+  .btn.big{padding:20px;font-size:18px}
+  .btn.ghost{background:transparent;color:var(--muted)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+  .field{width:100%;max-width:360px;display:flex;flex-direction:column;gap:7px;align-items:center}
+  .field-label{color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+  .seg{display:flex;gap:5px;background:var(--panel);border:1px solid var(--tile-border);border-radius:14px;padding:5px;width:100%}
+  .seg button{flex:1;padding:12px 0;border:none;background:transparent;color:var(--muted);
+    font-size:17px;font-weight:800;border-radius:10px;cursor:pointer;transition:.15s}
+  .seg button.on{background:var(--accent);color:#fff;box-shadow:0 4px 14px -6px var(--accent)}
+
+  .btn.diff{align-items:flex-start;text-align:left;display:flex;flex-direction:column;gap:3px;padding:13px 18px}
+  .btn.diff span{font-size:16px}
+  .btn.diff small{color:var(--muted);font-size:12.5px;font-weight:500;line-height:1.3}
+  .btn.diff.primary small{color:rgba(255,255,255,.8)}
+
+  .secret-wrap{position:relative;width:100%;max-width:360px}
+  #secret-input{
+    width:100%;padding:16px 52px 16px 18px;border-radius:14px;border:1px solid var(--tile-border);
+    background:var(--panel);color:var(--text);font-size:22px;text-align:center;
+    text-transform:uppercase;outline:none;font-weight:700;
+  }
+  #secret-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.18)}
+  #toggle-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:8px}
+
+  .topbar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px}
+  #game-mode{color:var(--muted);font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-align:left}
+  .mini{padding:7px 12px;border-radius:10px;border:1px solid var(--tile-border);background:transparent;
+    color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .mini:hover{color:var(--text);border-color:#5a6272}
+
+  .hint-bar{display:none;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;
+    background:rgba(79,140,255,.12);border:1px solid rgba(79,140,255,.35);color:#a9c6ff;
+    font-size:13px;font-weight:700;letter-spacing:.03em}
+  .hint-bar.show{display:flex}
+  .hint-bar b{color:#fff;font-size:16px;letter-spacing:.1em}
+
+  .board{--gap:6px;display:grid;gap:var(--gap);margin:0 auto}
+  .row{display:grid;gap:var(--gap)}
+  .tile{
+    aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    border:2px solid var(--tile-border);border-radius:8px;background:var(--tile-empty);
+    font-size:calc(var(--cell,40px) * .5);font-weight:800;text-transform:uppercase;user-select:none;
+    transition:border-color .12s;overflow:hidden;
+  }
+  .tile.filled{border-color:#6b7488;animation:pop .12s ease}
+  .tile.correct{background:var(--correct);border-color:var(--correct);color:#fff}
+  .tile.present{background:var(--present);border-color:var(--present);color:#fff}
+  .tile.absent{background:var(--absent);border-color:var(--absent);color:#c8cedb}
+  @keyframes pop{0%{transform:scale(.9)}50%{transform:scale(1.07)}100%{transform:scale(1)}}
+  @keyframes flipIn{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+  .tile.flip{animation:flipIn .5s ease forwards}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+  .row.shake{animation:shake .4s ease}
+
+  .keyboard{display:flex;flex-direction:column;gap:6px;width:100%;max-width:560px;padding:0 2px}
+  .krow{display:flex;gap:5px;justify-content:center}
+  .key{
+    flex:1 1 0;min-width:0;height:clamp(40px,9vw,52px);
+    border-radius:11px;border:none;
+    background:linear-gradient(180deg,#3a4150,#2a303c);
+    color:#e9edf3;
+    font-size:clamp(11px,3.4vw,15px);font-weight:700;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .15s, transform .08s, box-shadow .15s;
+    text-transform:uppercase;padding:0;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 2px 4px rgba(0,0,0,.25);
+  }
+  .key:hover{background:linear-gradient(180deg,#444b5c,#303747)}
+  .key:active{transform:translateY(1px) scale(.97);box-shadow:inset 0 1px 3px rgba(0,0,0,.4)}
+  .key.wide{flex:1.9 1 0;font-size:clamp(10px,2.9vw,12.5px);letter-spacing:.06em}
+  .key[data-key="ENTER"]{
+    background:linear-gradient(180deg,#4f8cff,#3568d4);
+    color:#fff;font-weight:800;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 3px 10px rgba(79,140,255,.4);
+  }
+  .key[data-key="ENTER"]:hover{background:linear-gradient(180deg,#5c96ff,#3a72e0)}
+  .key[data-key="ENTER"]:active{box-shadow:inset 0 2px 5px rgba(0,0,0,.35)}
+  .key[data-key="BACK"]{background:linear-gradient(180deg,#2c3240,#222732);color:#98a1b3}
+  .key[data-key="BACK"]:hover{background:linear-gradient(180deg,#353c4c,#292f3c);color:#cfd5e0}
+  .key.correct{background:linear-gradient(180deg,#48ab62,#358a4b);color:#fff}
+  .key.present{background:linear-gradient(180deg,#ceac42,#a38430);color:#fff}
+  .key.absent{background:linear-gradient(180deg,#22262e,#1a1e25);color:#4d5563;box-shadow:none}
+
+  .toast{
+    position:fixed;top:calc(66px + env(safe-area-inset-top, 0px));left:50%;
+    transform:translate(-50%,-24px);
+    background:#e9edf3;color:#12151c;padding:11px 20px;border-radius:10px;font-weight:700;font-size:14px;
+    opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;z-index:150;white-space:nowrap;max-width:90vw;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .overlay{position:fixed;inset:0;background:rgba(8,10,14,.82);display:none;
+    align-items:center;justify-content:center;padding:20px;z-index:200;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+  .overlay.show{display:flex;animation:fadeIn .2s ease}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .card{background:var(--panel);border:1px solid var(--tile-border);border-radius:20px;padding:26px 22px;
+    width:100%;max-width:370px;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;
+    animation:rise .25s ease}
+  @keyframes rise{from{transform:translateY(14px) scale(.97);opacity:0}to{transform:none;opacity:1}}
+  .card .emoji{font-size:48px}
+  .card h2{font-size:22px}
+  .card p{color:var(--muted);margin:0;font-size:15px;line-height:1.5}
+  .card .word{color:var(--accent);font-weight:800;letter-spacing:.18em;word-break:break-all}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     ЗАКРЕПЛЁННАЯ ШАПКА
+     ============================================================ -->
+<header class="app-header">
+  <div class="brand">ВОРДЛИ</div>
+  <div class="header-actions">
+    <button id="btn-share" class="icon-btn" aria-label="Поделиться" title="Поделиться">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="5" r="3"/>
+        <circle cx="6" cy="12" r="3"/>
+        <circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+    </button>
+    <button id="btn-install" class="icon-btn" aria-label="Установить приложение"
+            title="Установить приложение" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- ================= МЕНЮ ================= -->
+  <section id="screen-menu" class="screen active">
+    <div class="big-emoji">🎯</div>
+    <h2>Угадайте слово</h2>
+    <p class="sub">Зелёный — буква на месте, жёлтый — есть в слове,<br>серый — буквы нет.</p>
+    <button class="btn primary big" data-go="friend">🎮 Игра с другом</button>
+    <button class="btn big" data-go="bot">🤖 Игра с ботом</button>
+  </section>
+
+  <!-- ================= НАСТРОЙКИ ================= -->
+  <section id="screen-diff" class="screen">
+    <h2 id="diff-title">Настройки игры</h2>
+    <p class="sub" id="diff-sub"></p>
+
+    <div class="field">
+      <div class="field-label">Длина слова</div>
+      <div class="seg" id="len-seg">
+        <button data-len="4">4</button>
+        <button data-len="5" class="on">5</button>
+        <button data-len="6">6</button>
+        <button data-len="7">7</button>
+      </div>
+    </div>
+
+    <div class="field"><div class="field-label">Сложность</div></div>
+    <button class="btn diff primary" data-diff="easy">
+      <span>Легко</span><small id="d-easy"></small>
+    </button>
+    <button class="btn diff" data-diff="medium">
+      <span>Средне</span><small id="d-medium"></small>
+    </button>
+    <button class="btn diff" data-diff="hard">
+      <span>Сложно</span><small id="d-hard"></small>
+    </button>
+
+    <button class="btn ghost" data-go="menu">Назад</button>
+  </section>
+
+  <!-- ================= ЗАГАДЫВАНИЕ СЛОВА ================= -->
+  <section id="screen-setup" class="screen">
+    <h2>Игрок 1</h2>
+    <p class="sub" id="setup-sub">Загадайте слово. Игрок 2 не должен его видеть!</p>
+    <div class="secret-wrap">
+      <input id="secret-input" type="password" inputmode="text"
+             autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="•••••">
+      <button id="toggle-eye" title="Показать/скрыть">👁</button>
+    </div>
+    <button class="btn primary" id="setup-next" disabled>Дальше</button>
+    <button class="btn ghost" data-go="menu">Назад</button>
+  </section>
+
+  <!-- ================= ПЕРЕДАЧА УСТРОЙСТВА ================= -->
+  <section id="screen-handoff" class="screen">
+    <div class="big-emoji">🤝</div>
+    <h2>Передайте устройство Игроку 2</h2>
+    <p class="sub" id="handoff-sub"></p>
+    <button class="btn primary" id="handoff-go">Я готов</button>
+  </section>
+
+  <!-- ================= ИГРА ================= -->
+  <section id="screen-game" class="screen">
+    <div class="topbar">
+      <span id="game-mode">Игра</span>
+      <button id="btn-surrender" class="mini">Сдаться</button>
+    </div>
+    <div class="hint-bar" id="hint-bar"></div>
+    <div class="board" id="board"></div>
+    <div class="keyboard" id="keyboard"></div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="overlay">
+  <div class="card">
+    <div class="emoji" id="ov-emoji">🎉</div>
+    <h2 id="ov-title">Победа!</h2>
+    <p id="ov-text"></p>
+    <button class="btn primary" id="ov-again">Играть снова</button>
+    <button class="btn ghost" id="ov-menu">В меню</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   1. СЛОВАРЬ — вынесен в объект, легко заменить на внешний JSON
+   ============================================================ */
+const WORDS_JSON = {
+  "4": `
+    АИСТ АРФА АУЛ БАЗА БАНК БАНТ БАРС БЕДА БЛОК БОБР БОКС БОЛЬ БОРЩ БОСС БРАК БРАТ БРЕД БРИГ
+    БРОД БУРЯ БЫЛЬ ВАЗА ВЕЕР ВЕКО ВЕРА ВЕСЫ ВЕХА ВИЗА ВИНА ВИНО ВОЛК ВОЛЯ ВРАЧ ВРЕД ВЫСЬ
+    ГИМН ГЛАЗ ГНЕВ ГОДЫ ГОРА ГОРЕ ГОРН ГОСТ ГРАД ГРАФ ГРИБ ГРИМ ГРОБ ГРОТ ГРУЗ ГУБА ГУСЬ
+    ДАМА ДАТА ДВОР ДЕЛО ДЕНЬ ДЕПО ДЖИП ДИВО ДОЛГ ДОЛЯ ДРУГ ДУГА ДУЛО ДУША ДЫРА ЕЖИК ЕЛКА
+    ЖАБА ЖАЛО ЖАНР ЖАРА ЖГУТ ЖЕЛЕ ЖЕСТ ЖРЕЦ ЗАРЯ ЗВОН ЗВУК ЗИМА ЗМЕЯ ЗНАК ЗОЛА ЗОНТ ЗУБР
+    ИГЛА ИГРА ИДЕЯ ИНЕЙ ИРИС ИТОГ КАДР КАЙФ КАРА КАРП КАФЕ КАША КВАС КЕДР КИНО КЛАД КЛАН
+    КЛИН КЛОП КЛУБ КЛЮВ КЛЮЧ КНУТ КОВШ КОЖА КОЗА КОНЬ КОРА КОРМ КОФЕ КРАБ КРАЙ КРАН КРЕМ
+    КРОТ КРУГ КРЮК КУСТ ЛАВА ЛАМА ЛАПА ЛАРЬ ЛЕНЬ ЛЕТО ЛИФТ ЛИЦО ЛОЖЕ ЛОСЬ ЛУНА ЛУПА ЛЫЖИ
+    МАРШ МАТЧ МАЯК МЕДЬ МИНА МОРЕ МОСТ МРАК МУЗА МУКА МУХА МЫЛО МЯТА НАРЫ НЕБО НИТЬ НОГА
+    НОРА НОЧЬ НРАВ ОВОД ОВЦА ОКНО ОРДА ОРЕХ ОТЕЦ ОЧАГ ОЧКИ ПАРА ПАРК ПЕНА ПЕЧЬ ПИЛА ПИСК
+    ПЛАЧ ПЛЕД ПЛОД ПЛОТ ПЛЯЖ ПОЛЕ ПОЛК ПОРА ПОРТ ПОСТ ПОЭТ ПРУД ПУЛЯ ПУТЬ ПЯТА РАНА РЕКА
+    РЕПА РЕЧЬ РИСК РИТМ РОБА РОЖЬ РОЗА РОЩА РУДА РУКА РУЛЬ РЫБА САЛО САНИ СБОР СВЕТ СЕЛО
+    СЕМЯ СЕНО СЕТЬ СИЛА СКАТ СКОТ СЛЕД СЛОН СЛУХ СМЕХ СНЕГ СНОП СОЛО СОЛЬ СОРТ СПОР СРОК
+    СТАЖ СТАН СТИХ СТОГ СТОЛ СТОН СТУК СУТЬ СУША СЧЕТ ТАЙМ ТАНК ТЕНЬ ТЕСТ ТИГР ТИРЕ ТОЛК
+    ТОРТ ТОСТ ТРУД ТУША ТУШЬ УГАР УГОЛ УДАВ УДОЙ УЖАС УЗЕЛ УКОЛ УЛЕЙ УРОК УТКА ФАКТ ФАРА
+    ФАРС ФИЛЕ ФЛАГ ФЛОТ ФОРТ ФОТО ХАОС ХВОЯ ХЛЕБ ХОЛМ ХРАМ ЦАРЬ ЦВЕТ ЦЕНА ЦЕПЬ ЦИКЛ ЧАЩА
+    ЧЕЛО ЧУДО ШАРФ ШАТР ШИЛО ШКАФ ШЛЕМ ШТАБ ЩЕЛЬ ЭТАЖ ЭТАП ЭФИР ЮМОР ЯДРО ЯЗЫК ЯЙЦО ЯХТА
+    ИКРА КОСА ГИРЯ БАНЯ БАЛЛ ДИСК ГЕЛЬ ЛУЖА МЕРА ОПЫТ ПЛАЩ ПЛУГ РЕЙД СИТО ДЕВА ЛАПА БОРА ВЕЖА
+  `,
+  "5": `
+    АВТОР АГЕНТ АДРЕС АКТЕР АКЦИЯ АЛЛЕЯ АНГЕЛ АРБУЗ АРЕНА АРМИЯ АТАКА АТЛАС АФИША
+    АЛМАЗ АМБАР АНОНС АРКАН АСТРА АТЛЕТ БАГАЖ БАЗАР БАЛЕТ БАЛКА БАНАН БАНДА БАНКА
+    БАРАК БАРАН БАРЖА БАРОН БАСНЯ БАТОН БАШНЯ БЕГУН БЕДРО БЕКОН БЕЛКА БЕРЕГ БЕРЕТ
+    БЕТОН БИДОН БИЛЕТ БИРЖА БИТВА БИТУМ БЛАГО БЛАНК БЛЕСК БЛОХА БЛЮДО БОГАЧ БОКАЛ
+    БОМБА БОРЕЦ БОЧКА БРОНЯ БРОШЬ БРЮКИ БУГОР БУКВА БУКЕТ БУЛКА БУРАН БУТОН БУФЕТ
+    БУХТА ВАГОН ВАЛЕТ ВАЛУН ВАННА ВАФЛЯ ВДОВА ВЕДРО ВЕНОК ВЕНЕЦ ВЕРБА ВЕСЛО ВЕСНА
+    ВЕТЕР ВЕТКА ВЗВОД ВЗЛЕТ ВЗНОС ВЗРЫВ ВИЛКА ВИЛЛА ВИРАЖ ВИРУС ВИШНЯ ВКЛАД ВЛАГА
+    ВОБЛА ВОЖДЬ ВОЛНА ВОЛОС ВОПЛЬ ВОРОН ВОРОТ ВОЯКА ВРАТА ВРЕМЯ ВЫБОР ВЫВОД ВЫЗОВ
+    ВЫХОД ГАЗОН ГАЛКА ГАММА ГАРАЖ ГЕНИЙ ГЕРОЙ ГЛАВА ГЛИНА ГОЛОС ГОНКА ГОРКА ГОРОД
+    ГОСТЬ ГРАНЬ ГРАФА ГРИВА ГРИПП ГРОЗА ГРУДЬ ГРУША ГРЯДА ГУБКА ГУДОК ДВЕРЬ ДЕВИЗ
+    ДЕСНА ДЕФИС ДИВАН ДИЕТА ДИЛЕР ДОБРО ДОГМА ДОСКА ДОСУГ ДОХОД ДРАКА ДРАМА ДУПЛО
+    ДУРАК ДУЭЛЬ ДЫМКА ЖАЖДА ЖАКЕТ ЖИВОТ ЖИЗНЬ ЖИЛЕТ ЖИРАФ ЗАБЕГ ЗАБОР ЗАВОД ЗАГАР
+    ЗАКАЗ ЗАКАТ ЗАКОН ЗАЛИВ ЗАМОК ЗАПАД ЗАПАС ЗАПАХ ЗАРЯД ЗАТЕЯ ЗВЕНО ЗВЕРЬ ЗЕМЛЯ
+    ЗЕНИТ ЗЕРНО ЗНАМЯ ИГРОК ИДЕАЛ ИКОНА ИМИДЖ ИСКРА ИСТОК КАБАК КАБАН КАДЕТ КАЗАК
+    КАЗНА КАКАО КАМИН КАНАЛ КАНАТ КАПЛЯ КАПОТ КАРАТ КАРТА КАСКА КАССА КАТЕР КАЮТА
+    КВОТА КЕФИР КИНЗА КИОСК КИСТЬ КЛАСС КЛИШЕ КЛОУН КНИГА КОБРА КОВЕР КОЛБА КОЛОС
+    КОЛЬЕ КОМАР КОМОД КОНЕЦ КОНУС КОПИЯ КОПНА КОПЬЕ КОРКА КОРМА КОРОБ КОСТЬ КОФТА
+    КОШКА КРАЖА КРЕДО КРОВЬ КРУИЗ КРУПА КРЫЛО КРЫША КУБИК КУКЛА КУЛАК КУПЕЦ КУСОК
+    КУХНЯ ЛАВКА ЛАДАН ЛАЗЕР ЛАМПА ЛАПША ЛАСКА ЛАФЕТ ЛЕНТА ЛЕПКА ЛЕСКА ЛИАНА ЛИМОН
+    ЛИНИЯ ЛОВЕЦ ЛОДКА ЛОЖКА ЛОКОН ЛОТОС ЛОЦИЯ ЛУНКА МАГИЯ МАЙКА МАЛЫШ МАНГО МАНЕЖ
+    МАНИЯ МАРКА МАРЛЯ МАСКА МАСЛО МАСТЬ МЕСТО МЕСЯЦ МЕТЛА МЕТРО МЕЧТА МИРАЖ МИСКА
+    МОЛОТ МОРОЗ МОТИВ МОТОР МУЗЕЙ МЫШКА НАВЕС НАЛОГ НАРОД НАСОС НАЦИЯ НЕВОД НЕДРА
+    НИТКА НОМЕР НОРКА НОСОК НУЖДА ОБИДА ОБМЕН ОБРЫВ ОВРАГ ОГОНЬ ОКЕАН ОЛЕНЬ ОПЕКА
+    ОПЕРА ОПОРА ОПРОС ОРДЕН ОРДЕР ОСЕНЬ ОСИНА ОТВЕТ ОТДЫХ ОТЕЛЬ ОХОТА ОЧЕРК ПАКЕТ
+    ПАЛЕЦ ПАЛКА ПАПКА ПАРУС ПАСТА ПАУЗА ПЕНАЛ ПЕРЕЦ ПЕСНЯ ПЕСОК ПЕЧКА ПИЛОТ ПИРОГ
+    ПЛАМЯ ПЛАТА ПЛЕЧО ПЛИТА ПОВАР ПОЕЗД ПОЖАР ПОИСК ПОЛЕТ ПОЛКА ПОЛЮС ПОРОГ ПОРОХ
+    ПОТОК ПОЧТА ПОЭМА ПРАВО ПРОБА ПРЯЖА ПТИЦА ПУДРА ПУЛЬС ПУШКА ПЧЕЛА ПШЕНО ПЯТКА
+    РАДАР РАДИО РАЗУМ РАЙОН РАМКА РАНЕЦ РЕЧКА РОБОТ РОМАН РУБЛЬ РУЖЬЕ РУКАВ РУЛОН
+    РУЧЕЙ РЫБАК РЫНОК САЛАТ САЛЮТ САПОГ САХАР СВЕЧА СЕЗОН СЕМЬЯ СЕТКА СИРОП СКАЛА
+    СКВЕР СКЛАД СКОТЧ СЛАВА СЛЕЗА СЛИВА СЛОВО СМЕНА СМОЛА СОВЕТ СОКОЛ СОСЕД СОСНА
+    СПИНА СПОРТ СРЕДА ССОРА СТАДО СТАЛЬ СТАРТ СТВОЛ СТЕНА СТЕПЬ СТИЛЬ СТОЛБ СТОПА
+    СТРАХ СТРОЙ СТУПА СУМКА СХЕМА СЦЕНА ТАЙНА ТАНЕЦ ТЕАТР ТЕКСТ ТЕПЛО ТЕРЕМ ТЕСТО
+    ТИРАЖ ТКАНЬ ТОВАР ТОЛПА ТОРЕЦ ТОЧКА ТРАВА ТРОПА ТРУБА ТУМАН ТУФЛЯ ТЫКВА УГОЛЬ
+    УДАЧА УКРОП УЛИЦА УСПЕХ УЧЕБА УЩЕРБ ФАКЕЛ ФЕРМА ФИЛЬМ ФИНИШ ФЛОРА ФОКУС ФОРМА
+    ФОРУМ ФРУКТ ФУРОР ХАЛАТ ХОББИ ХОЛОД ХОЛСТ ХОМЯК ХОХОТ ХУТОР ЦАПЛЯ ЦЕДРА ЦЕНТР
+    ЦИФРА ЧАЙКА ЧАШКА ЧЕСТЬ ЧИСЛО ЧУЛАН ШАПКА ШАРИК ШАССИ ШАХТА ШИРМА ШКОЛА ШЛЯПА
+    ШОССЕ ШПИОН ШТОРА ШТУКА ШУТКА ЩЕНОК ЩЕТКА ЭКРАН ЭЛИТА ЭПОХА ЭСКИЗ ЮНОША ЯГОДА ЯКОРЬ
+  `,
+  "6": `
+    АБАЖУР АВАРИЯ АЛЬБОМ АНАНАС АНКЕТА АПТЕКА АРЕНДА АРТИСТ БАЛАНС БАЛКОН БАЛЛОН
+    БАНДИТ БАНКЕТ БАНКИР БАРМЕН БЕГЛЕЦ БЕЗДНА БЕРЕЗА БЕСЕДА БИБЛИЯ БОЛОТО БОРОДА
+    БУКЛЕТ БУМАГА БЮДЖЕТ ВАЛЮТА ВОКЗАЛ ВОРОНА ВОСТОК ГАЗЕТА ГАРПУН ГВОЗДЬ ГЕКТАР
+    ГИТАРА ГОЛОВА ГОЛУБЬ ГОРШОК ГРАФИК ГРИБОК ГРУППА ДВОРЕЦ ДЕЛЬТА ДЕРЕВО
+    ДЕТАЛЬ ДИАЛОГ ДОБЫЧА ДОЗОР ДОКЛАД ДОКТОР ДОРОГА ДРАКОН ДРЕЙФ ДРУЖБА ДУБИНА
+    ЕЛЬНИК ЖЕЛЕЗО ЖУРНАЛ ЗАБАВА ЗАБОТА ЗАВОДЬ ЗАДАЧА ЗАПИСЬ ЗАЩИТА ЗВЕЗДА ЗДАНИЕ
+    ЗОЛОТО ИНДЕКС КАБИНА КАМЕНЬ КАНАВА КАРМАН КАРТОН КИНЖАЛ КИРПИЧ КЛЕТКА КЛИЕНТ
+    КОДЕКС КОЛЕСО КОМПАС КОНТУР КОРОЛЬ КОРОНА КОРПУС КОСТЕР КОСТЮМ КОСМОС КРАСКА
+    КРЕСЛО КРИЗИС КРУЖКА КУВШИН КУРИЦА ЛАВИНА ЛАГЕРЬ ЛАГУНА ЛАДОНЬ ЛАНДЫШ ЛЕГИОН
+    ЛИВЕНЬ ЛОСКУТ ЛОШАДЬ ЛОСОСЬ МАЛИНА МАРКЕР МАСТЕР МАШИНА МЕДАЛЬ МЕТАЛЛ МЕТЕЛЬ
+    МЕШОК МИНУТА МОЛОКО МОЛНИЯ МОНЕТА МУЗЫКА НЕДЕЛЯ ОБЛАКО ОБЪЕМ ОГУРЕЦ ОДЕЯЛО
+    ОСТРОВ ПЕЙЗАЖ ПЕКАРЬ ПЕРИЛА ПЕЧЕНЬ ПЛИТКА ПОБЕДА ПОГОДА ПОЛОСА ПОМОЩЬ ПОРОДА
+    ПОСУДА ПОЭЗИЯ ПРАВДА ПРЕМИЯ ПРИКАЗ ПРОБЕЛ ПРОБКА ПРОЕКТ ПРОРЫВ РАБОТА РАДУГА
+    РАЗВОД РАЗДЕЛ РАЗЛОМ РАКЕТА РЕКОРД РЕЗЕРВ РЕМОНТ РЕШЕТО РОДИНА РОДНИК РЮКЗАК
+    СВИТОК СЕКРЕТ СЕЛЬДЬ СЕРДЦЕ СИГНАЛ СКАМЬЯ СОБАКА СОЛНЦЕ СТАКАН СТАТЬЯ ТАЛАНТ
+    ТЕЛЕГА ТЕТИВА УПАДОК УРОЖАЙ ФИГУРА ФУТБОЛ ХОЗЯИН ЦВЕТОК ЮНОСТЬ ЯБЛОКО ЯБЛОНЯ
+  `,
+  "7": `
+    АВТОБУС АЛФАВИТ БАБОЧКА БАРАБАН БАССЕЙН БАТАРЕЯ БИНОКЛЬ БУТЫЛКА ВАРЕЖКА ВЕЛИКАН
+    ВЕРБЛЮД ВЕРШИНА ВЕСЕЛЬЕ ВЕТЕРАН ВИТРИНА ВОРОБЕЙ ГАЛЕРЕЯ ГАЛСТУК ГЛУБИНА ГОЛОЛЕД
+    ГРАНИЦА ДЕРЕВНЯ ДУХОВКА ЖЕЛУДОК ЗАГАДКА ЗАВТРАК ЗАНАВЕС ЗЕРКАЛО ИГРУШКА ИЗБУШКА
+    ИНТЕРЕС ИСТОРИЯ КАБИНЕТ КАПИТАН КАПУСТА КАРТИНА КОЛБАСА КОЛЛЕГА КОЛОДЕЦ КОМАНДА
+    КОМНАТА КОНВЕРТ КОНЦЕРТ КОПЕЙКА КОРАБЛЬ КОРЗИНА КОРОБКА КРОВАТЬ КРЫЛЬЦО ЛЕГЕНДА
+    ЛИМОНАД ЛУКОШКО МАГАЗИН МАЛЬЧИК МАРШРУТ МАТЕРИК МЕДВЕДЬ МОЛОТОК ОБОРОНА ПОДАРОК
+    ПОЛДЕНЬ ПОТОЛОК ПРОСТОР ПРУЖИНА ПУСТЫНЯ РАССВЕТ РЕБЕНОК РЕШЕНИЕ РИСУНОК РУБАШКА
+    САМОЛЕТ СВОБОДА СИСТЕМА СЧАСТЬЕ ТАБЛИЦА ТАРЕЛКА ТЕЛЕФОН ТЕТРАДЬ ТРАМВАЙ УЧИТЕЛЬ
+    ФАМИЛИЯ ХАРАКТЕР ЧЕЛОВЕК ЧЕМПИОН ЧУВСТВО ШКАФЧИК ШОКОЛАД ЭКЗАМЕН ЭЛЕМЕНТ ЭНЕРГИЯ ЮБИЛЕЙ
+  `
+};
+
+const norm = s => (s || '').toUpperCase().replace(/Ё/g,'Е').replace(/[^А-Я]/g,'');
+
+const ALL_WORDS = [...new Set(
+  Object.values(WORDS_JSON).flatMap(raw => raw.trim().split(/\s+/)).map(norm).filter(Boolean)
+)].filter(w => w.length >= 4 && w.length <= 7);
+
+const poolOf = len => ALL_WORDS.filter(w => w.length === len);
+
+/* ============================================================
+   2. КОНСТАНТЫ
+   ============================================================ */
+const KB_ROWS = [
+  ['Й','Ц','У','К','Е','Н','Г','Ш','Щ','З','Х','Ъ'],
+  ['Ф','Ы','В','А','П','Р','О','Л','Д','Ж','Э'],
+  ['ENTER','Я','Ч','С','М','И','Т','Ь','Б','Ю','BACK']
+];
+
+const LAT2RU = {
+  KeyQ:'Й',KeyW:'Ц',KeyE:'У',KeyR:'К',KeyT:'Е',KeyY:'Н',KeyU:'Г',KeyI:'Ш',KeyO:'Щ',KeyP:'З',
+  BracketLeft:'Х',BracketRight:'Ъ',
+  KeyA:'Ф',KeyS:'Ы',KeyD:'В',KeyF:'А',KeyG:'П',KeyH:'Р',KeyJ:'О',KeyK:'Л',KeyL:'Д',
+  Semicolon:'Ж',Quote:'Э',
+  KeyZ:'Я',KeyX:'Ч',KeyC:'С',KeyV:'М',KeyB:'И',KeyN:'Т',KeyM:'Ь',Comma:'Б',Period:'Ю'
+};
+
+const DIFF = {
+  easy:   { name:'Легко',  tries: len => len + 2, hint: true  },
+  medium: { name:'Средне', tries: len => len + 1, hint: false },
+  hard:   { name:'Сложно', tries: len => len,     hint: false }
+};
+
+const S = {
+  len: 5, diff: 'medium', maxTries: 6,
+  mode: null, secret: '', guesses: [], current: '',
+  row: 0, over: false, busy: false, pendingSecret: ''
+};
+
+/* ============================================================
+   3. DOM
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const screens = {
+  menu:    $('screen-menu'),
+  diff:    $('screen-diff'),
+  setup:   $('screen-setup'),
+  handoff: $('screen-handoff'),
+  game:    $('screen-game')
+};
+const boardEl     = $('board');
+const keyboardEl  = $('keyboard');
+const toastEl     = $('toast');
+const overlayEl   = $('overlay');
+const hintBar     = $('hint-bar');
+const secretInput = $('secret-input');
+const setupNext   = $('setup-next');
+
+function showScreen(name){
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  screens[name].classList.add('active');
+}
+
+let toastTimer;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1700);
+}
+
+/* ============================================================
+   4. СЛОВАРЬ БЕЗ ПОВТОРОВ
+   ============================================================ */
+const usedKey = len => 'ru_wordle_used_v4_' + len;
+function getUsed(len){
+  try { return JSON.parse(localStorage.getItem(usedKey(len)) || '[]'); }
+  catch(e){ return []; }
+}
+function setUsed(len, arr){
+  try { localStorage.setItem(usedKey(len), JSON.stringify(arr)); } catch(e){}
+}
+function pickWord(len){
+  const pool = poolOf(len);
+  if (!pool.length) return 'СЛОВО';
+  let used = getUsed(len).filter(w => pool.includes(w));
+  let avail = pool.filter(w => !used.includes(w));
+  if (!avail.length){ used = []; avail = pool.slice(); }
+  const word = avail[Math.floor(Math.random() * avail.length)];
+  used.push(word);
+  setUsed(len, used);
+  return word;
+}
+
+/* ============================================================
+   5. ОЦЕНКА
+   ============================================================ */
+function evaluate(guess, secret){
+  const n = secret.length;
+  const res = new Array(n).fill('absent');
+  const counts = {};
+  for (const ch of secret) counts[ch] = (counts[ch] || 0) + 1;
+  for (let i = 0; i < n; i++){
+    if (guess[i] === secret[i]){ res[i] = 'correct'; counts[guess[i]]--; }
+  }
+  for (let i = 0; i < n; i++){
+    if (res[i] === 'correct') continue;
+    const ch = guess[i];
+    if (counts[ch] > 0){ res[i] = 'present'; counts[ch]--; }
+  }
+  return res;
+}
+
+/* ============================================================
+   6. ПОЛЕ И КЛАВИАТУРА
+   ============================================================ */
+function buildBoard(){
+  boardEl.innerHTML = '';
+  boardEl.style.gridTemplateRows = `repeat(${S.maxTries}, 1fr)`;
+  for (let r = 0; r < S.maxTries; r++){
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.style.gridTemplateColumns = `repeat(${S.len}, 1fr)`;
+    for (let c = 0; c < S.len; c++){
+      const t = document.createElement('div');
+      t.className = 'tile';
+      row.appendChild(t);
+    }
+    boardEl.appendChild(row);
+  }
+  layoutBoard();
+}
+
+function layoutBoard(){
+  const gap = 6;
+  const cols = S.len, rows = S.maxTries;
+  const availW = Math.min(window.innerWidth - 32, 520);
+  const availH = Math.max(window.innerHeight - 400, 140);
+  const cellW = (availW - (cols - 1) * gap) / cols;
+  const cellH = (availH - (rows - 1) * gap) / rows;
+  const cell  = Math.max(20, Math.min(cellW, cellH, 74));
+  boardEl.style.setProperty('--cell', cell + 'px');
+  boardEl.style.width = (cols * cell + (cols - 1) * gap) + 'px';
+}
+
+window.addEventListener('resize', () => {
+  if (screens.game.classList.contains('active')) layoutBoard();
+});
+
+function buildKeyboard(){
+  keyboardEl.innerHTML = '';
+  KB_ROWS.forEach(keys => {
+    const kr = document.createElement('div');
+    kr.className = 'krow';
+    keys.forEach(k => {
+      const btn = document.createElement('button');
+      btn.className = 'key' + (k === 'ENTER' || k === 'BACK' ? ' wide' : '');
+      btn.dataset.key = k;
+      btn.textContent = k === 'ENTER' ? 'ВВОД' : (k === 'BACK' ? '⌫' : k);
+      btn.addEventListener('click', () => handleKey(k));
+      kr.appendChild(btn);
+    });
+    keyboardEl.appendChild(kr);
+  });
+}
+
+const rowEl  = i => boardEl.children[i];
+const tileEl = (r,c) => boardEl.children[r].children[c];
+const keyEl  = k => keyboardEl.querySelector(`[data-key="${k}"]`);
+
+/* ============================================================
+   7. ВВОД
+   ============================================================ */
+function handleKey(k){
+  if (S.over || S.busy) return;
+  if (k === 'ENTER'){ submitGuess(); return; }
+  if (k === 'BACK'){
+    if (S.current.length > 0){
+      S.current = S.current.slice(0, -1);
+      const t = tileEl(S.row, S.current.length);
+      t.textContent = '';
+      t.classList.remove('filled');
+    }
+    return;
+  }
+  if (S.current.length >= S.len) return;
+  S.current += k;
+  const t = tileEl(S.row, S.current.length - 1);
+  t.textContent = k;
+  t.classList.add('filled');
+}
+
+/* ============================================================
+   8. ОТПРАВКА
+   ============================================================ */
+function submitGuess(){
+  if (S.current.length < S.len){
+    shakeRow(S.row);
+    toast(`Слово должно быть из ${S.len} букв`);
+    return;
+  }
+  const guess = S.current;
+  const score = evaluate(guess, S.secret);
+  S.busy = true;
+
+  score.forEach((st, i) => {
+    const t = tileEl(S.row, i);
+    t.classList.add('flip');
+    t.style.animationDelay = (i * 0.26) + 's';
+    setTimeout(() => t.classList.add(st), i * 260 + 230);
+  });
+
+  setTimeout(() => {
+    S.guesses.push({ word: guess, score });
+    updateKeyboard(guess, score);
+    S.busy = false;
+
+    if (guess === S.secret){
+      S.over = true;
+      setTimeout(() => endGame(true), 180);
+      return;
+    }
+    S.row++;
+    S.current = '';
+    if (S.row >= S.maxTries){
+      S.over = true;
+      setTimeout(() => endGame(false), 180);
+    }
+  }, S.len * 260 + 280);
+}
+
+function updateKeyboard(guess, score){
+  const rank = { absent: 0, present: 1, correct: 2 };
+  score.forEach((st, i) => {
+    const el = keyEl(guess[i]);
+    if (!el) return;
+    const cur = el.classList.contains('correct') ? 'correct'
+              : el.classList.contains('present') ? 'present'
+              : el.classList.contains('absent')  ? 'absent' : null;
+    if (cur && rank[cur] >= rank[st]) return;
+    el.classList.remove('correct','present','absent');
+    el.classList.add(st);
+  });
+}
+
+function shakeRow(r){
+  const el = rowEl(r);
+  el.classList.add('shake');
+  setTimeout(() => el.classList.remove('shake'), 420);
+}
+
+/* ============================================================
+   9. СТАРТ / КОНЕЦ
+   ============================================================ */
+function resetGameUI(){
+  buildBoard();
+  buildKeyboard();
+  S.guesses = []; S.current = ''; S.row = 0; S.over = false; S.busy = false;
+  overlayEl.classList.remove('show');
+}
+
+function applyHint(){
+  if (DIFF[S.diff].hint){
+    hintBar.classList.add('show');
+    hintBar.innerHTML = `Первая буква: <b>${S.secret[0]}</b>`;
+  } else {
+    hintBar.classList.remove('show');
+    hintBar.innerHTML = '';
+  }
+}
+
+function startBotGame(){
+  S.mode = 'bot';
+  S.secret = pickWord(S.len);
+  S.maxTries = DIFF[S.diff].tries(S.len);
+  resetGameUI();
+  $('game-mode').textContent = `🤖 Бот · ${S.len} букв · ${DIFF[S.diff].name}`;
+  applyHint();
+  showScreen('game');
+}
+
+function startFriendGame(secret){
+  S.mode = 'friend';
+  S.secret = secret;
+  S.maxTries = DIFF[S.diff].tries(S.len);
+  resetGameUI();
+  $('game-mode').textContent = `🎮 Друг · ${S.len} букв · ${DIFF[S.diff].name}`;
+  applyHint();
+  showScreen('game');
+}
+
+function plural(n, one, few, many){
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+  return many;
+}
+
+function endGame(won){
+  const tries = S.guesses.length;
+  $('ov-emoji').textContent = won ? (tries <= 2 ? '🏆' : '🎉') : '😢';
+  $('ov-title').textContent = won ? 'Победа!' : 'Не угадали';
+  if (won){
+    $('ov-text').innerHTML =
+      `Слово <span class="word">${S.secret}</span> угадано за ${tries} ${plural(tries,'попытку','попытки','попыток')}.`;
+  } else {
+    $('ov-text').innerHTML = `Загаданное слово: <span class="word">${S.secret}</span>`;
+  }
+  overlayEl.classList.add('show');
+}
+
+/* ============================================================
+   10. НАВИГАЦИЯ
+   ============================================================ */
+document.querySelectorAll('#len-seg button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#len-seg button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    S.len = parseInt(btn.dataset.len, 10);
+    refreshDiffText();
+  });
+});
+
+function refreshDiffText(){
+  const len = S.len;
+  $('diff-sub').textContent =
+    S.mode === 'bot'
+      ? `Бот загадает слово из ${len} букв`
+      : `Игрок 2 будет угадывать слово из ${len} букв`;
+  ['easy','medium','hard'].forEach(k => {
+    const d = DIFF[k];
+    const t = d.tries(len);
+    const extra = d.hint ? ' · первая буква открыта' : '';
+    $('d-' + k).textContent = `${t} ${plural(t,'попытка','попытки','попыток')}${extra}`;
+  });
+}
+
+function openSettings(mode){
+  S.mode = mode;
+  $('diff-title').textContent = mode === 'bot' ? '🤖 Игра с ботом' : '🎮 Игра с другом';
+  refreshDiffText();
+  showScreen('diff');
+}
+
+document.querySelectorAll('[data-go]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const go = btn.dataset.go;
+    if (go === 'friend'){ openSettings('friend'); return; }
+    if (go === 'bot'){ openSettings('bot'); return; }
+    if (go === 'menu'){ showScreen('menu'); }
+  });
+});
+
+document.querySelectorAll('[data-diff]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    S.diff = btn.dataset.diff;
+    if (S.mode === 'bot'){ startBotGame(); return; }
+
+    secretInput.value = '';
+    secretInput.type = 'password';
+    secretInput.maxLength = S.len;
+    $('toggle-eye').textContent = '👁';
+    setupNext.disabled = true;
+    $('setup-sub').textContent =
+      `Загадайте слово из ${S.len} букв. Игрок 2 не должен его видеть!`;
+    showScreen('setup');
+    setTimeout(() => secretInput.focus(), 120);
+  });
+});
+
+setupNext.addEventListener('click', () => {
+  const word = norm(secretInput.value);
+  if (word.length !== S.len){ toast(`Нужно ровно ${S.len} букв`); return; }
+  S.pendingSecret = word;
+  secretInput.value = '';
+  secretInput.type = 'password';
+  $('toggle-eye').textContent = '👁';
+  const t = DIFF[S.diff].tries(S.len);
+  $('handoff-sub').textContent =
+    `Слово загадано. У Игрока 2 есть ${t} ${plural(t,'попытка','попытки','попыток')}, чтобы его отгадать.`;
+  showScreen('handoff');
+});
+
+$('handoff-go').addEventListener('click', () => {
+  startFriendGame(S.pendingSecret || 'СЛОВО');
+});
+
+$('toggle-eye').addEventListener('click', () => {
+  const hidden = secretInput.type === 'password';
+  secretInput.type = hidden ? 'text' : 'password';
+  $('toggle-eye').textContent = hidden ? '🙈' : '👁';
+  secretInput.focus();
+});
+
+secretInput.addEventListener('input', () => {
+  const clean = norm(secretInput.value).slice(0, S.len);
+  secretInput.value = clean;
+  setupNext.disabled = clean.length !== S.len;
+});
+
+secretInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && norm(secretInput.value).length === S.len) setupNext.click();
+});
+
+$('btn-surrender').addEventListener('click', () => {
+  if (S.over) return;
+  S.over = true;
+  endGame(false);
+});
+
+$('ov-again').addEventListener('click', () => {
+  overlayEl.classList.remove('show');
+  if (S.mode === 'bot'){
+    startBotGame();
+  } else {
+    secretInput.value = '';
+    secretInput.type = 'password';
+    secretInput.maxLength = S.len;
+    $('toggle-eye').textContent = '👁';
+    setupNext.disabled = true;
+    showScreen('setup');
+    setTimeout(() => secretInput.focus(), 120);
+  }
+});
+
+$('ov-menu').addEventListener('click', () => {
+  overlayEl.classList.remove('show');
+  showScreen('menu');
+});
+
+/* ============================================================
+   11. ФИЗИЧЕСКАЯ КЛАВИАТУРА
+   ============================================================ */
+document.addEventListener('keydown', e => {
+  if (!screens.game.classList.contains('active')) return;
+  if (overlayEl.classList.contains('show')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  if (e.key === 'Enter'){ e.preventDefault(); handleKey('ENTER'); return; }
+  if (e.key === 'Backspace'){ e.preventDefault(); handleKey('BACK'); return; }
+
+  let ch = e.key.toUpperCase().replace('Ё','Е');
+  if (/^[А-Я]$/.test(ch)){ e.preventDefault(); handleKey(ch); return; }
+
+  const ru = LAT2RU[e.code];
+  if (ru){ e.preventDefault(); handleKey(ru); }
+});
+
+/* ============================================================
+   12. PWA — манифест, иконки, установка
+   ============================================================ */
+(function setupPWA(){
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawIcon(size){
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+
+    // Фон
+    const g = ctx.createLinearGradient(0, 0, size, size);
+    g.addColorStop(0, '#232c40');
+    g.addColorStop(1, '#0f1115');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+
+    // Рамка-акцент
+    ctx.strokeStyle = 'rgba(79,140,255,.65)';
+    ctx.lineWidth = Math.max(2, size * 0.018);
+    const pad = size * 0.09, rr = size * 0.18;
+    roundRect(ctx, pad, pad, size - pad*2, size - pad*2, rr);
+    ctx.stroke();
+
+    // Буква «В»
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${size * 0.46}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('В', size/2, size/2 + size * 0.02);
+
+    return c.toDataURL('image/png');
+  }
+
+  const icon192 = drawIcon(192);
+  const icon512 = drawIcon(512);
+
+  // --- Манифест ---
+  const manifest = {
+    name: 'Вордли — русская версия',
+    short_name: 'Вордли',
+    description: 'Угадайте слово за ограниченное число попыток',
+    lang: 'ru',
+    start_url: location.pathname + location.search,
+    scope: location.pathname,
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#0f1115',
+    theme_color: '#0f1115',
+    icons: [
+      { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+    ]
+  };
+
+  try {
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = URL.createObjectURL(blob);
+    document.head.appendChild(link);
+  } catch(e){}
+
+  // --- apple-touch-icon + favicon ---
+  const aIcon = document.createElement('link');
+  aIcon.rel = 'apple-touch-icon';
+  aIcon.href = icon192;
+  document.head.appendChild(aIcon);
+
+  const fIcon = document.createElement('link');
+  fIcon.rel = 'icon';
+  fIcon.type = 'image/png';
+  fIcon.href = icon192;
+  document.head.appendChild(fIcon);
+
+  // --- Service worker (опционально, если рядом лежит sw.js) ---
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+})();
+
+/* ============================================================
+   13. КНОПКА «УСТАНОВИТЬ»
+   ============================================================ */
+(function setupInstallButton(){
+  const btnInstall = $('btn-install');
+  let deferredPrompt = null;
+
+  const isStandalone = () =>
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  if (isStandalone()){
+    btnInstall.hidden = true;
+  } else if (isIOS){
+    // На iOS PWA ставится вручную через «Поделиться → На экран Домой»
+    btnInstall.hidden = false;
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!isStandalone()) btnInstall.hidden = false;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    btnInstall.hidden = true;
+    toast('Приложение установлено 👍');
+  });
+
+  btnInstall.addEventListener('click', async () => {
+    if (deferredPrompt){
+      try {
+        deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted'){
+          deferredPrompt = null;
+          btnInstall.hidden = true;
+        }
+      } catch(e){}
+      return;
+    }
+
+    if (isIOS){
+      alert('Установка на iPhone / iPad:\n\n' +
+            '1. Откройте меню «Поделиться» в Safari\n' +
+            '2. Прокрутите и выберите «На экран «Домой»»\n' +
+            '3. Нажмите «Добавить»');
+    } else {
+      alert('Установка приложения:\n\n' +
+            'В Chrome откройте меню ⋮ (справа сверху) и выберите\n' +
+            '«Установить приложение» / «Добавить на главный экран».');
+    }
+  });
+})();
+
+/* ============================================================
+   14. КНОПКА «ПОДЕЛИТЬСЯ»
+   ============================================================ */
+(function setupShareButton(){
+  const btnShare = $('btn-share');
+
+  btnShare.addEventListener('click', async () => {
+    const url = location.href;
+    const payload = {
+      title: 'Вордли — русская версия',
+      text: 'Угадай слово за несколько попыток!',
+      url
+    };
+
+    // 1) Нативный share (мобильные + Edge)
+    if (navigator.share){
+      try {
+        await navigator.share(payload);
+        return;
+      } catch(e){
+        // Пользователь отменил — тихо выходим
+        if (e && e.name === 'AbortError') return;
+      }
+    }
+
+    // 2) Clipboard API
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('Ссылка скопирована');
+      return;
+    } catch(e){}
+
+    // 3) Самый старый fallback
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('Ссылка скопирована');
+    } catch(e){
+      prompt('Скопируйте ссылку:', url);
+    }
+  });
+})();
+
+/* ============================================================
+   15. ИНИЦИАЛИЗАЦИЯ
+   ============================================================ */
+buildBoard();
+buildKeyboard();
+</script>
+</body>
+</html>
