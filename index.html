@@ -4,11 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
+<meta name="description" content="Вордли — русская версия. Угадайте слово за ограниченное число попыток.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Вордли">
 <title>Вордли — угадай слово</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --tile-empty:#1c2029; --tile-border:#3d434f;
@@ -27,94 +33,59 @@
     padding-top:calc(74px + env(safe-area-inset-top, 0px));
     min-height:100%;
   }
-
   .app-header{
-    position:fixed;
-    top:0; left:0; right:0;
-    z-index:100;
+    position:fixed; top:0; left:0; right:0; z-index:100;
     height:calc(56px + env(safe-area-inset-top, 0px));
-    padding:0 14px;
-    padding-top:env(safe-area-inset-top, 0px);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
+    padding:0 14px; padding-top:env(safe-area-inset-top, 0px);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
     background:rgba(15,17,21,.8);
     -webkit-backdrop-filter:blur(14px) saturate(160%);
     backdrop-filter:blur(14px) saturate(160%);
     border-bottom:1px solid rgba(255,255,255,.06);
     box-shadow:0 6px 24px -18px rgba(0,0,0,.9);
   }
-
   .brand{
-    display:inline-flex;
-    align-items:center;
-    gap:.26em;
-    padding-left:.26em;
-    font-size:clamp(17px, 4.8vw, 21px);
-    font-weight:800;
-    line-height:1;
-    text-transform:uppercase;
-    user-select:none;
-    white-space:nowrap;
+    display:inline-flex; align-items:center; gap:.26em;
+    padding-left:.26em; padding-top:6px; padding-bottom:6px;
+    font-size:clamp(17px, 4.8vw, 21px); font-weight:800; line-height:1;
+    text-transform:uppercase; user-select:none; white-space:nowrap;
     filter:drop-shadow(0 0 6px rgba(79,140,255,.35));
     animation:brandPulse 3.2s ease-in-out infinite;
-    padding-top:6px;
-    padding-bottom:6px;
   }
   @keyframes brandPulse{
     0%,100%{ filter:drop-shadow(0 0 5px rgba(79,140,255,.22)); }
     50%    { filter:drop-shadow(0 0 14px rgba(79,140,255,.6)); }
   }
-
   .brand-letter{
     display:inline-block;
     background:linear-gradient(90deg,
-      #8fa6c9 0%,
-      #ffffff 18%,
-      #6aa7ff 36%,
-      #ffffff 54%,
-      #8fa6c9 72%,
-      #ffffff 90%,
-      #8fa6c9 100%);
+      #8fa6c9 0%, #ffffff 18%, #6aa7ff 36%,
+      #ffffff 54%, #8fa6c9 72%, #ffffff 90%, #8fa6c9 100%);
     background-size:200% auto;
-    -webkit-background-clip:text;
-    background-clip:text;
-    color:transparent;
-    -webkit-text-fill-color:transparent;
+    -webkit-background-clip:text; background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
     animation:brandShimmer 4.2s linear infinite;
-    will-change:transform;
-    transform-origin:50% 50%;
+    will-change:transform; transform-origin:50% 50%;
     backface-visibility:hidden;
   }
   @keyframes brandShimmer{
-    0%   { background-position:0% center; }
-    100% { background-position:200% center; }
+    0%{ background-position:0% center; } 100%{ background-position:200% center; }
   }
-
   .header-actions{ display:flex; gap:6px; align-items:center; }
-
   .icon-btn{
-    width:38px; height:38px;
-    border-radius:11px;
+    width:38px; height:38px; border-radius:11px;
     border:1px solid rgba(255,255,255,.08);
-    background:rgba(255,255,255,.04);
-    color:var(--muted);
+    background:rgba(255,255,255,.04); color:var(--muted);
     display:flex; align-items:center; justify-content:center;
     cursor:pointer; padding:0;
     transition:color .15s, background .15s, border-color .15s, transform .1s;
   }
   .icon-btn svg{ width:18px; height:18px; display:block; }
-  .icon-btn:hover{
-    color:var(--text);
-    background:rgba(255,255,255,.08);
-    border-color:rgba(255,255,255,.16);
-  }
+  .icon-btn:hover{ color:var(--text); background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.16); }
   .icon-btn:active{ transform:scale(.93); }
   .icon-btn[hidden]{ display:none; }
 
   .app{width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center}
-
   .screen{display:none;width:100%;flex:1;flex-direction:column;align-items:center;gap:14px;justify-content:center;text-align:center}
   .screen.active{display:flex}
   #screen-game{justify-content:space-between;gap:8px;padding:4px 0}
@@ -151,28 +122,14 @@
   .btn.diff small{color:var(--muted);font-size:12.5px;font-weight:500;line-height:1.3}
   .btn.diff.primary small{color:rgba(255,255,255,.8)}
 
-  /* ============================================================
-     ПОЛЕ ВВОДА СЕКРЕТНОГО СЛОВА
-     Тип — text (без пароля!), маскировка через CSS.
-     Браузеры не будут предлагать сохранить пароль.
-     ============================================================ */
   .secret-wrap{position:relative;width:100%;max-width:360px}
   #secret-input{
     width:100%;padding:16px 52px 16px 18px;border-radius:14px;border:1px solid var(--tile-border);
     background:var(--panel);color:var(--text);font-size:22px;text-align:center;
-    text-transform:uppercase;outline:none;font-weight:700;
-    letter-spacing:.08em;
+    text-transform:uppercase;outline:none;font-weight:700;letter-spacing:.08em;
   }
   #secret-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.18)}
-
-  /* Маскировка букв точками без type=password.
-     -webkit-text-security работает в Chrome, Safari, Edge,
-     Opera и Firefox 111+. Fallback — прозрачный цвет текста. */
-  #secret-input.masked{
-    -webkit-text-security: disc;
-    text-security: disc;
-  }
-
+  #secret-input.masked{ -webkit-text-security: disc; text-security: disc; }
   #toggle-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);
     background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:8px}
 
@@ -212,10 +169,8 @@
     flex:1 1 0;min-width:0;height:clamp(40px,9vw,52px);
     border-radius:11px;border:none;
     background:linear-gradient(180deg,#3a4150,#2a303c);
-    color:#e9edf3;
-    font-size:clamp(11px,3.4vw,15px);font-weight:700;
-    cursor:pointer;
-    display:flex;align-items:center;justify-content:center;
+    color:#e9edf3; font-size:clamp(11px,3.4vw,15px); font-weight:700;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
     transition:background .15s, transform .08s, box-shadow .15s;
     text-transform:uppercase;padding:0;
     box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 2px 4px rgba(0,0,0,.25);
@@ -327,7 +282,6 @@
     <h2>Игрок 1</h2>
     <p class="sub" id="setup-sub">Загадайте слово. Игрок 2 не должен его видеть!</p>
     <div class="secret-wrap">
-      <!-- type="text" — НЕ пароль. Маскировка через CSS-класс .masked -->
       <input id="secret-input" class="masked" type="text" inputmode="text"
              autocapitalize="characters" autocomplete="off" autocorrect="off"
              spellcheck="false" placeholder="•••••">
@@ -533,8 +487,7 @@ function toast(msg){
 }
 
 /* ============================================================
-   4. ХЕЛПЕРЫ ДЛЯ ПОЛЯ СЕКРЕТА
-   (тип поля — text, маскировка через CSS-класс .masked)
+   4. МАСКИРОВКА СЕКРЕТА (без type=password)
    ============================================================ */
 function maskSecret(){ secretInput.classList.add('masked'); }
 function unmaskSecret(){ secretInput.classList.remove('masked'); }
@@ -857,14 +810,8 @@ $('handoff-go').addEventListener('click', () => {
 });
 
 $('toggle-eye').addEventListener('click', () => {
-  const hidden = isMasked();
-  if (hidden){
-    unmaskSecret();
-    $('toggle-eye').textContent = '🙈';
-  } else {
-    maskSecret();
-    $('toggle-eye').textContent = '👁';
-  }
+  if (isMasked()){ unmaskSecret(); $('toggle-eye').textContent = '🙈'; }
+  else { maskSecret(); $('toggle-eye').textContent = '👁'; }
   secretInput.focus();
 });
 
@@ -923,85 +870,13 @@ document.addEventListener('keydown', e => {
 });
 
 /* ============================================================
-   13. PWA
+   13. SERVICE WORKER
    ============================================================ */
-(function setupPWA(){
-  function roundRect(ctx, x, y, w, h, r){
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-  function drawIcon(size){
-    const c = document.createElement('canvas');
-    c.width = c.height = size;
-    const ctx = c.getContext('2d');
-    const g = ctx.createLinearGradient(0, 0, size, size);
-    g.addColorStop(0, '#232c40');
-    g.addColorStop(1, '#0f1115');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    ctx.strokeStyle = 'rgba(79,140,255,.65)';
-    ctx.lineWidth = Math.max(2, size * 0.018);
-    const pad = size * 0.09, rr = size * 0.18;
-    roundRect(ctx, pad, pad, size - pad*2, size - pad*2, rr);
-    ctx.stroke();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${size * 0.46}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('В', size/2, size/2 + size * 0.02);
-    return c.toDataURL('image/png');
-  }
-  const icon192 = drawIcon(192);
-  const icon512 = drawIcon(512);
-
-  const manifest = {
-    name: 'Вордли — русская версия',
-    short_name: 'Вордли',
-    description: 'Угадайте слово за ограниченное число попыток',
-    lang: 'ru',
-    start_url: location.pathname + location.search,
-    scope: location.pathname,
-    display: 'standalone',
-    orientation: 'portrait',
-    background_color: '#0f1115',
-    theme_color: '#0f1115',
-    icons: [
-      { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-    ]
-  };
-
-  try {
-    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = URL.createObjectURL(blob);
-    document.head.appendChild(link);
-  } catch(e){}
-
-  const aIcon = document.createElement('link');
-  aIcon.rel = 'apple-touch-icon';
-  aIcon.href = icon192;
-  document.head.appendChild(aIcon);
-
-  const fIcon = document.createElement('link');
-  fIcon.rel = 'icon';
-  fIcon.type = 'image/png';
-  fIcon.href = icon192;
-  document.head.appendChild(fIcon);
-
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    });
-  }
-})();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
 
 /* ============================================================
    14. КНОПКА «УСТАНОВИТЬ»
@@ -1075,12 +950,8 @@ document.addEventListener('keydown', e => {
     };
 
     if (navigator.share){
-      try {
-        await navigator.share(payload);
-        return;
-      } catch(e){
-        if (e && e.name === 'AbortError') return;
-      }
+      try { await navigator.share(payload); return; }
+      catch(e){ if (e && e.name === 'AbortError') return; }
     }
     try {
       await navigator.clipboard.writeText(url);
@@ -1105,8 +976,6 @@ document.addEventListener('keydown', e => {
 
 /* ============================================================
    16. АНИМАЦИЯ ЛОГОТИПА «ВОРДЛИ»
-   Буквы разлетаются (будто толкнули сзади) и возвращаются.
-   Паузы между событиями увеличены — 4–7 секунд.
    ============================================================ */
 (function animateBrand(){
   const brandEl = document.getElementById('brand');
@@ -1124,7 +993,6 @@ document.addEventListener('keydown', e => {
     letters.push(span);
   });
 
-  // Вступительное появление
   letters.forEach((el, i) => {
     el.animate([
       { opacity: 0, transform: 'translate3d(0,-22px,0) scale(.4) rotate(-30deg)' },
@@ -1141,29 +1009,13 @@ document.addEventListener('keydown', e => {
   function makeKeyframes(dx, dy, rot, scaleUp){
     return [
       { transform: 'translate3d(0,0,0) rotate(0deg) scale(1)', offset: 0 },
-
-      // Импульс: мгновенный вылет
       { transform: `translate3d(${dx*0.70}px, ${dy*0.70}px, 0) rotate(${rot*0.45}deg) scale(${scaleUp})`, offset: 0.09 },
-
-      // Замедление
       { transform: `translate3d(${dx*0.94}px, ${dy*0.94}px, 0) rotate(${rot*0.85}deg) scale(${scaleUp*0.96})`, offset: 0.28 },
-
-      // Пик разлёта
       { transform: `translate3d(${dx}px, ${dy}px, 0) rotate(${rot}deg) scale(${scaleUp*0.9})`, offset: 0.42 },
-
-      // Хаос: дрейф и доворот
       { transform: `translate3d(${dx*1.07}px, ${dy*1.05}px, 0) rotate(${rot*1.18}deg) scale(${scaleUp*0.84})`, offset: 0.58 },
-
-      // Возврат
       { transform: `translate3d(${dx*0.35}px, ${dy*0.35}px, 0) rotate(${rot*0.5}deg) scale(${scaleUp*0.55})`, offset: 0.72 },
-
-      // Перелёт
       { transform: `translate3d(${-dx*0.18}px, ${-dy*0.18}px, 0) rotate(${-rot*0.28}deg) scale(1.16)`, offset: 0.86 },
-
-      // Отскок
       { transform: `translate3d(${dx*0.06}px, ${dy*0.06}px, 0) rotate(${rot*0.1}deg) scale(0.94)`, offset: 0.94 },
-
-      // Покой
       { transform: 'translate3d(0,0,0) rotate(0deg) scale(1)', offset: 1 }
     ];
   }
@@ -1177,22 +1029,18 @@ document.addEventListener('keydown', e => {
     busy = true;
 
     const center = (letters.length - 1) / 2;
-
     letters.forEach((el, i) => {
       const rel = center === 0 ? 0 : (i - center) / center;
-
       const sideStrength = 16 + Math.abs(rel) * 14;
       const noiseX = (Math.random() - 0.5) * 44;
       const noiseY = (Math.random() - 0.5) * 46;
 
       let dx = rel * sideStrength + noiseX;
       let dy = 16 + Math.random() * 22 + noiseY * 0.5;
-
       if (Math.random() < 0.35) dy = -Math.abs(dy) * (0.55 + Math.random() * 0.7);
 
-      const maxX = 52, maxY = 34;
-      dx = Math.max(-maxX, Math.min(maxX, dx));
-      dy = Math.max(-maxY, Math.min(maxY, dy));
+      dx = Math.max(-52, Math.min(52, dx));
+      dy = Math.max(-34, Math.min(34, dy));
 
       const rot = (Math.random() - 0.5) * 140;
       const scaleUp = 1.15 + Math.random() * 0.22;
@@ -1210,15 +1058,9 @@ document.addEventListener('keydown', e => {
   let timer = null;
   function schedule(){
     clearTimeout(timer);
-    // Увеличенные паузы между «рассыпаниями»: 4.0–6.5 секунды
     const delay = 4000 + Math.random() * 2500;
-    timer = setTimeout(() => {
-      scatterAll();
-      schedule();
-    }, delay);
+    timer = setTimeout(() => { scatterAll(); schedule(); }, delay);
   }
-
-  // Первый запуск — с чуть увеличенной стартовой паузой
   setTimeout(schedule, 1800);
 
   document.addEventListener('visibilitychange', () => {
